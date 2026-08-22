@@ -96,7 +96,7 @@
     <div class="header-container">
         <div class="header-left">
             <div class="disc-icon">💿</div>
-            <div class="collection-title" id="collectionCount">Active Collection (0 Albums)</div>
+            <div class="collection-title" id="collectionCount">Active Collection (Loading...)</div>
         </div>
         <div class="search-wrapper">
             <input type="text" class="search-bar" id="searchBar" placeholder="Search artist, title, keywords...">
@@ -134,9 +134,8 @@
         </div>
     </div>
     <button class="back-to-top" id="backToTop">↑</button>
-    <script>
-        const GOOGLE_SHEET_API_URL = "https://script.google.com/macros/s/AKfycbzASZcZBBRcoDudHNGrv1YMXo7MXVlsZfg4WhiP8BUcTkisEVf6PLhOf8VWZCbSPc_T/exec";
 
+    <script>
         const GOOGLE_SHEET_API_URL = "https://google.com";
 
         let allAlbums = [];
@@ -161,140 +160,156 @@
         const modalTracks = document.getElementById('modalTracks');
         const closeModal = document.getElementById('closeModal');
 
-        async function fetchCollection() {
-            try {
-                collectionCount.innerText = "Loading Live Rows...";
-                
-                const script = document.createElement('script');
-                script.src = GOOGLE_SHEET_API_URL + "?callback=handleJSONPResponse";
-                
-                window.handleJSONPResponse = function(data) {
-                    allAlbums = data;
-                    renderData(allAlbums);
-                    delete window.handleJSONPResponse;
-                    document.body.removeChild(script);
-                };
-                
-                script.onerror = function() {
-                    collectionCount.innerText = "Connection Error";
-                };
-                
-                document.body.appendChild(script);
-            } catch (err) {
-                collectionCount.innerText = "Connection Error";
-                console.error("Payload Sync Exception:", err);
-            }
-        }
+// Fetch data using JSONP to bypass CORS
+async function fetchCollection() {
+  try {
+    collectionCount.innerText = "Loading Live Rows...";
+    const script = document.createElement('script');
+    script.src = GOOGLE_SHEET_API_URL + "?callback=handleJSONPResponse";
+    
+    window.handleJSONPResponse = function(data) {
+      allAlbums = data;
+      renderData(allAlbums);
+      delete window.handleJSONPResponse;
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    };
+    
+    script.onerror = function() {
+      collectionCount.innerText = "Connection Error";
+    };
+    
+    document.body.appendChild(script);
+  } catch (err) {
+    collectionCount.innerText = "Connection Error";
+    console.error("Payload Sync Exception:", err);
+  }
+}
 
-        function renderData(data) {
-            collectionCount.innerText = "Active Collection (" + data.length + " Albums)";
-            listBody.innerHTML = ''; 
-            gridView.innerHTML = '';
-            
-            if (!data || data.length === 0) { 
-                noDataMessage.style.display = 'block'; 
-                return; 
-            }
-            noDataMessage.style.display = 'none';
-            
-            data.forEach(album => {
-                // 📡 UNIVERSAL ALIGNMENT WRAPPER: Maps both upper and lowercase keys cleanly!
-                const artist = album.artist || album.Artist || "Unknown Artist";
-                const title = album.title || album.Title || "Untitled";
-                const keywords = album.keywords || album.Keywords || "";
-                const location = album.location || album.Location || "";
-                const artwork = album.artwork || album.Artwork || "";
+// Render data into both List and Grid views
+function renderData(data) {
+  collectionCount.innerText = "Active Collection (" + data.length + " Albums)";
+  listBody.innerHTML = '';
+  gridView.innerHTML = '';
+  
+  if (!data || data.length === 0) {
+    noDataMessage.style.display = 'block';
+    return;
+  }
+  
+  noDataMessage.style.display = 'none';
+  
+  data.forEach(album => {
+    const artist = album.artist || album.Artist || "Unknown Artist";
+    const title = album.title || album.Title || "Untitled";
+    const keywords = album.keywords || album.Keywords || "";
+    const location = album.location || album.Location || "";
+    const artwork = album.artwork || album.Artwork || "";
+    
+    // 1. Build List Row View
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${artist}</td><td>${title}</td><td>${keywords}</td><td>${location}</td>`;
+    tr.addEventListener('click', () => openAlbumModal(album));
+    listBody.appendChild(tr);
+    
+    // 2. Build Grid Card View
+    const card = document.createElement('div');
+    card.className = 'grid-card';
+    const hasArt = artwork && artwork.toLowerCase().startsWith('http');
+    card.innerHTML = (hasArt ? `<img src="${artwork}" alt="${title}">` : "💿") + `<h3>${title}</h3><p>${artist}</p>`;
+    card.addEventListener('click', () => openAlbumModal(album));
+    gridView.appendChild(card);
+  });
+}
 
-                // 📋 RENDER LIST ROW
-                const tr = document.createElement('tr');
-                tr.innerHTML = "<td><b>" + artist + "</b></td><td>" + title + "</td><td style='color:#aaa;'>" + keywords + "</td><td>" + location + "</td>";
-                tr.addEventListener('click', () => openAlbumModal(album));
-                listBody.appendChild(tr);
+// Open Modal and display selected Album properties
+function openAlbumModal(album) {
+  const artist = album.artist || album.Artist || "Unknown Artist";
+  const title = album.title || album.Title || "Untitled";
+  const releaseDate = album.releaseDate || album.ReleaseDate || 'N/A';
+  const length = album.length || album.Length || 'N/A';
+  const label = album.label || album.Label || 'N/A';
+  const tracks = album.tracks || album.Tracks || '';
+  const artwork = album.artwork || album.Artwork || '';
+  
+  modalHeadline.innerText = artist + " - " + title;
+  modalReleased.innerText = releaseDate;
+  modalLength.innerText = length;
+  modalLabel.innerText = label;
+  modalTracks.innerText = tracks ? tracks.replace(/\n/g, '\n') : 'No tracks listed.';
+  
+  // Set Discogs search link
+  modalDiscogs.href = "https://discogs.com" + encodeURIComponent(artist + " " + title) + "&type=release";
+  
+  const hasArt = artwork && artwork.toLowerCase().startsWith('http');
+  if (hasArt) {
+    modalArt.src = artwork;
+    modalArt.style.display = 'block';
+    modalArtFallback.style.display = 'none';
+  } else {
+    modalArt.style.display = 'none';
+    modalArtFallback.style.display = 'flex';
+  }
+  
+  modalOverlay.classList.add('active');
+}
 
-                // 🎴 RENDER CARD MATRIX
-                const card = document.createElement('div'); 
-                card.className = 'grid-card';
-                const hasArt = artwork && artwork.toLowerCase().startsWith('http');
-                card.innerHTML = (hasArt ? "<img class='grid-art-placeholder' src='" + artwork + "'>" : "<div class='grid-art-placeholder'>💿</div>") + "<div class='grid-title'>" + title + "</div><div class='grid-artist'>" + artist + "</div>";
-                card.addEventListener('click', () => openAlbumModal(album));
-                gridView.appendChild(card);
-            });
-        }
+// Close Modal events
+closeModal.addEventListener('click', () => modalOverlay.classList.remove('active'));
+modalOverlay.addEventListener('click', (e) => {
+  if (e.target === modalOverlay) modalOverlay.classList.remove('active');
+});
 
-        function openAlbumModal(album) {
-            const artist = album.artist || album.Artist || "Unknown Artist";
-            const title = album.title || album.Title || "Untitled";
-            const releaseDate = album.releaseDate || album.ReleaseDate || 'N/A';
-            const length = album.length || album.Length || 'N/A';
-            const label = album.label || album.Label || 'N/A';
-            const tracks = album.tracks || album.Tracks || '';
-            const artwork = album.artwork || album.Artwork || '';
+// Search input logic
+searchBar.addEventListener('input', (e) => {
+  const query = e.target.value.toLowerCase().trim();
+  if (query) {
+    clearSearch.style.display = 'block';
+    const filtered = allAlbums.filter(a => {
+      const rArtist = (a.artist || a.Artist || "").toLowerCase();
+      const rTitle = (a.title || a.Title || "").toLowerCase();
+      const rKeywords = (a.keywords || a.Keywords || "").toLowerCase();
+      return rArtist.includes(query) || rTitle.includes(query) || rKeywords.includes(query);
+    });
+    renderData(filtered);
+  } else {
+    clearSearch.style.display = 'none';
+    renderData(allAlbums);
+  }
+});
 
-            modalHeadline.innerText = artist + " - " + title;
-            modalReleased.innerText = releaseDate;
-            modalLength.innerText = length;
-            modalLabel.innerText = label;
-            modalTracks.innerText = tracks ? tracks.replace(/\\n/g, '\n') : 'No tracks listed.';
-            modalDiscogs.href = "https://discogs.com" + encodeURIComponent(artist + " " + title) + "&type=release";
-            
-            const hasArt = artwork && artwork.toLowerCase().startsWith('http');
-            if(hasArt) { 
-                modalArt.src = artwork; 
-                modalArt.style.display = 'block'; 
-                modalArtFallback.style.display = 'none'; 
-            } else { 
-                modalArt.style.display = 'none'; 
-                modalArtFallback.style.display = 'flex'; 
-            }
-            modalOverlay.classList.add('active');
-        }
+// Clear search logic
+clearSearch.addEventListener('click', () => {
+  searchBar.value = '';
+  clearSearch.style.display = 'none';
+  renderData(allAlbums);
+});
 
-        closeModal.addEventListener('click', () => modalOverlay.classList.remove('active'));
-        modalOverlay.addEventListener('click', (e) => { 
-            if(e.target === modalOverlay) modalOverlay.classList.remove('active'); 
-        });
+// Layout Toggles Initialization & Actions
+listToggle.className = 'toggle-btn active';
+gridToggle.className = 'toggle-btn';
 
-        searchBar.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase().trim();
-            if(query) {
-                clearSearch.style.display = 'block';
-                const filtered = allAlbums.filter(a => {
-                    const rArtist = (a.artist || a.Artist || "").toLowerCase();
-                    const rTitle = (a.title || a.Title || "").toLowerCase();
-                    const rKeywords = (a.keywords || a.Keywords || "").toLowerCase();
-                    return rArtist.includes(query) || rTitle.includes(query) || rKeywords.includes(query);
-                });
-                renderData(filtered);
-            } else { 
-                clearSearch.style.display = 'none'; 
-                renderData(allAlbums); 
-            }
-        });
-        
-        clearSearch.addEventListener('click', () => { 
-            searchBar.value = ''; 
-            clearSearch.style.display = 'none'; 
-            renderData(allAlbums); 
-        });
+listToggle.addEventListener('click', () => {
+  listToggle.className = 'toggle-btn active';
+  gridToggle.className = 'toggle-btn';
+  listView.style.display = 'table';
+  gridView.style.display = 'none';
+});
 
-        listToggle.addEventListener('click', () => { 
-            listToggle.className = 'toggle-btn active'; 
-            gridToggle.className = 'toggle-btn'; 
-            listView.style.display = 'table'; 
-            gridView.style.display = 'none'; 
-        });
-        
-        gridToggle.addEventListener('click', () => { 
-            gridToggle.className = 'toggle-btn active'; 
-            listToggle.className = 'toggle-btn'; 
-            gridView.style.display = 'grid'; 
-            listView.style.display = 'none'; 
-        });
+gridToggle.addEventListener('click', () => {
+  gridToggle.className = 'toggle-btn active';
+  listToggle.className = 'toggle-btn';
+  gridView.style.display = 'grid';
+  listView.style.display = 'none';
+});
 
-        window.addEventListener('scroll', () => { 
-            if(window.scrollY > 150) backToTop.classList.add('visible'); 
-            else backToTop.classList.remove('visible'); 
-        });
-        backToTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+// Back To Top Scroll Logic
+window.addEventListener('scroll', () => {
+  if (window.scrollY > 150) backToTop.classList.add('visible');
+  else backToTop.classList.remove('visible');
+});
+backToTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
 
-        fetchCollection();
+// Initial execution
+fetchCollection();
