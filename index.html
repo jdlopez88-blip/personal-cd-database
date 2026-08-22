@@ -166,21 +166,19 @@ async function fetchCollection() {
     collectionCount.innerText = "Loading Live Rows...";
     const script = document.createElement('script');
     script.src = GOOGLE_SHEET_API_URL + "?callback=handleJSONPResponse";
-    
+
     window.handleJSONPResponse = function(data) {
+      console.log("JSONP callback fired:", data);
       allAlbums = data;
       renderData(allAlbums);
-      delete window.handleJSONPResponse;
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
-      }
     };
-    
+
     script.onerror = function() {
       collectionCount.innerText = "Connection Error";
     };
-    
+
     document.body.appendChild(script);
+
   } catch (err) {
     collectionCount.innerText = "Connection Error";
     console.error("Payload Sync Exception:", err);
