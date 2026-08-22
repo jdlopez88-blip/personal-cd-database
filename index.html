@@ -137,7 +137,7 @@
     <script>
         const GOOGLE_SHEET_API_URL = "https://script.google.com/macros/s/AKfycbzASZcZBBRcoDudHNGrv1YMXo7MXVlsZfg4WhiP8BUcTkisEVf6PLhOf8VWZCbSPc_T/exec";
 
-        let allAlbums = [];
+let allAlbums = [];
         const listBody = document.getElementById('listBody');
         const gridView = document.getElementById('gridView');
         const listView = document.getElementById('listView');
@@ -159,15 +159,13 @@
         const modalTracks = document.getElementById('modalTracks');
         const closeModal = document.getElementById('closeModal');
 
-                async function fetchCollection() {
+        async function fetchCollection() {
             try {
                 collectionCount.innerText = "Loading Live Rows...";
                 
-                // 🔌 NEW PRODUCTION CONTEXT ENGINE: Routes data via JSONP to effortlessly drop browser barriers
                 const script = document.createElement('script');
                 script.src = GOOGLE_SHEET_API_URL + "?callback=handleJSONPResponse";
                 
-                // Safety connection timeout routine
                 window.handleJSONPResponse = function(data) {
                     allAlbums = data;
                     renderData(allAlbums);
@@ -186,39 +184,43 @@
             }
         }
 
-
         function renderData(data) {
-            collectionCount.innerText = `Active Collection (${data.length} Albums)`;
+            collectionCount.innerText = "Active Collection (" + data.length + " Albums)";
             listBody.innerHTML = ''; 
             gridView.innerHTML = '';
-            if (data.length === 0) { 
+            
+            if (!data || data.length === 0) { 
                 noDataMessage.style.display = 'block'; 
                 return; 
             }
             noDataMessage.style.display = 'none';
+            
             data.forEach(album => {
+                // 📋 RENDER COMPACT LIST ROW
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td style="font-weight:bold;">${album.artist}</td><td>${album.title}</td><td style="color:#aaa;">${album.keywords}</td><td>${album.location}</td>`;
+                tr.innerHTML = "<td><b>" + (album.artist || "Unknown Artist") + "</b></td><td>" + (album.title || "Untitled") + "</td><td style='color:#aaa;'>" + (album.keywords || "") + "</td><td>" + (album.location || "") + "</td>";
                 tr.addEventListener('click', () => openAlbumModal(album));
                 listBody.appendChild(tr);
 
+                // 🎴 RENDER GALLERY GRID CARD
                 const card = document.createElement('div'); 
                 card.className = 'grid-card';
-                const hasArt = album.artwork && album.artwork.startsWith('http');
-                card.innerHTML = `${hasArt ? `<img class="grid-art-placeholder" src="${album.artwork}">` : `<div class="grid-art-placeholder">💿</div>`}<div class="grid-title">${album.title}</div><div class="grid-artist">${album.artist}</div>`;
+                const hasArt = album.artwork && album.artwork.toLowerCase().startsWith('http');
+                card.innerHTML = (hasArt ? "<img class='grid-art-placeholder' src='" + album.artwork + "'>" : "<div class='grid-art-placeholder'>💿</div>") + "<div class='grid-title'>" + (album.title || "Untitled") + "</div><div class='grid-artist'>" + (album.artist || "Unknown") + "</div>";
                 card.addEventListener('click', () => openAlbumModal(album));
                 gridView.appendChild(card);
             });
         }
 
         function openAlbumModal(album) {
-            modalHeadline.innerText = `${album.artist} - ${album.title}`;
+            modalHeadline.innerText = (album.artist || "") + " - " + (album.title || "");
             modalReleased.innerText = album.releaseDate || 'N/A';
             modalLength.innerText = album.length || 'N/A';
             modalLabel.innerText = album.label || 'N/A';
-            modalTracks.innerText = album.tracks ? album.tracks.replace(/\\n/g, '\n') : 'No tracks.';
-            modalDiscogs.href = `https://discogs.com{encodeURIComponent(album.artist + ' ' + album.title)}&type=release`;
-            if(album.artwork && album.artwork.startsWith('http')) { 
+            modalTracks.innerText = album.tracks ? album.tracks.replace(/\\n/g, '\n') : 'No tracks listed.';
+            modalDiscogs.href = "https://discogs.com" + encodeURIComponent((album.artist || "") + " " + (album.title || "")) + "&type=release";
+            
+            if(album.artwork && album.artwork.toLowerCase().startsWith('http')) { 
                 modalArt.src = album.artwork; 
                 modalArt.style.display = 'block'; 
                 modalArtFallback.style.display = 'none'; 
@@ -238,13 +240,18 @@
             const query = e.target.value.toLowerCase().trim();
             if(query) {
                 clearSearch.style.display = 'block';
-                const filtered = allAlbums.filter(a => a.artist.toLowerCase().includes(query) || a.title.toLowerCase().includes(query) || a.keywords.toLowerCase().includes(query));
+                const filtered = allAlbums.filter(a => 
+                    (a.artist || "").toLowerCase().includes(query) || 
+                    (a.title || "").toLowerCase().includes(query) || 
+                    (a.keywords || "").toLowerCase().includes(query)
+                );
                 renderData(filtered);
             } else { 
                 clearSearch.style.display = 'none'; 
                 renderData(allAlbums); 
             }
         });
+        
         clearSearch.addEventListener('click', () => { 
             searchBar.value = ''; 
             clearSearch.style.display = 'none'; 
@@ -257,6 +264,7 @@
             listView.style.display = 'table'; 
             gridView.style.display = 'none'; 
         });
+        
         gridToggle.addEventListener('click', () => { 
             gridToggle.className = 'toggle-btn active'; 
             listToggle.className = 'toggle-btn'; 
