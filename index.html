@@ -137,7 +137,9 @@
     <script>
         const GOOGLE_SHEET_API_URL = "https://script.google.com/macros/s/AKfycbzASZcZBBRcoDudHNGrv1YMXo7MXVlsZfg4WhiP8BUcTkisEVf6PLhOf8VWZCbSPc_T/exec";
 
-let allAlbums = [];
+        const GOOGLE_SHEET_API_URL = "https://google.com";
+
+        let allAlbums = [];
         const listBody = document.getElementById('listBody');
         const gridView = document.getElementById('gridView');
         const listView = document.getElementById('listView');
@@ -196,32 +198,48 @@ let allAlbums = [];
             noDataMessage.style.display = 'none';
             
             data.forEach(album => {
-                // 📋 RENDER COMPACT LIST ROW
+                // 📡 UNIVERSAL ALIGNMENT WRAPPER: Maps both upper and lowercase keys cleanly!
+                const artist = album.artist || album.Artist || "Unknown Artist";
+                const title = album.title || album.Title || "Untitled";
+                const keywords = album.keywords || album.Keywords || "";
+                const location = album.location || album.Location || "";
+                const artwork = album.artwork || album.Artwork || "";
+
+                // 📋 RENDER LIST ROW
                 const tr = document.createElement('tr');
-                tr.innerHTML = "<td><b>" + (album.artist || "Unknown Artist") + "</b></td><td>" + (album.title || "Untitled") + "</td><td style='color:#aaa;'>" + (album.keywords || "") + "</td><td>" + (album.location || "") + "</td>";
+                tr.innerHTML = "<td><b>" + artist + "</b></td><td>" + title + "</td><td style='color:#aaa;'>" + keywords + "</td><td>" + location + "</td>";
                 tr.addEventListener('click', () => openAlbumModal(album));
                 listBody.appendChild(tr);
 
-                // 🎴 RENDER GALLERY GRID CARD
+                // 🎴 RENDER CARD MATRIX
                 const card = document.createElement('div'); 
                 card.className = 'grid-card';
-                const hasArt = album.artwork && album.artwork.toLowerCase().startsWith('http');
-                card.innerHTML = (hasArt ? "<img class='grid-art-placeholder' src='" + album.artwork + "'>" : "<div class='grid-art-placeholder'>💿</div>") + "<div class='grid-title'>" + (album.title || "Untitled") + "</div><div class='grid-artist'>" + (album.artist || "Unknown") + "</div>";
+                const hasArt = artwork && artwork.toLowerCase().startsWith('http');
+                card.innerHTML = (hasArt ? "<img class='grid-art-placeholder' src='" + artwork + "'>" : "<div class='grid-art-placeholder'>💿</div>") + "<div class='grid-title'>" + title + "</div><div class='grid-artist'>" + artist + "</div>";
                 card.addEventListener('click', () => openAlbumModal(album));
                 gridView.appendChild(card);
             });
         }
 
         function openAlbumModal(album) {
-            modalHeadline.innerText = (album.artist || "") + " - " + (album.title || "");
-            modalReleased.innerText = album.releaseDate || 'N/A';
-            modalLength.innerText = album.length || 'N/A';
-            modalLabel.innerText = album.label || 'N/A';
-            modalTracks.innerText = album.tracks ? album.tracks.replace(/\\n/g, '\n') : 'No tracks listed.';
-            modalDiscogs.href = "https://discogs.com" + encodeURIComponent((album.artist || "") + " " + (album.title || "")) + "&type=release";
+            const artist = album.artist || album.Artist || "Unknown Artist";
+            const title = album.title || album.Title || "Untitled";
+            const releaseDate = album.releaseDate || album.ReleaseDate || 'N/A';
+            const length = album.length || album.Length || 'N/A';
+            const label = album.label || album.Label || 'N/A';
+            const tracks = album.tracks || album.Tracks || '';
+            const artwork = album.artwork || album.Artwork || '';
+
+            modalHeadline.innerText = artist + " - " + title;
+            modalReleased.innerText = releaseDate;
+            modalLength.innerText = length;
+            modalLabel.innerText = label;
+            modalTracks.innerText = tracks ? tracks.replace(/\\n/g, '\n') : 'No tracks listed.';
+            modalDiscogs.href = "https://discogs.com" + encodeURIComponent(artist + " " + title) + "&type=release";
             
-            if(album.artwork && album.artwork.toLowerCase().startsWith('http')) { 
-                modalArt.src = album.artwork; 
+            const hasArt = artwork && artwork.toLowerCase().startsWith('http');
+            if(hasArt) { 
+                modalArt.src = artwork; 
                 modalArt.style.display = 'block'; 
                 modalArtFallback.style.display = 'none'; 
             } else { 
@@ -240,11 +258,12 @@ let allAlbums = [];
             const query = e.target.value.toLowerCase().trim();
             if(query) {
                 clearSearch.style.display = 'block';
-                const filtered = allAlbums.filter(a => 
-                    (a.artist || "").toLowerCase().includes(query) || 
-                    (a.title || "").toLowerCase().includes(query) || 
-                    (a.keywords || "").toLowerCase().includes(query)
-                );
+                const filtered = allAlbums.filter(a => {
+                    const rArtist = (a.artist || a.Artist || "").toLowerCase();
+                    const rTitle = (a.title || a.Title || "").toLowerCase();
+                    const rKeywords = (a.keywords || a.Keywords || "").toLowerCase();
+                    return rArtist.includes(query) || rTitle.includes(query) || rKeywords.includes(query);
+                });
                 renderData(filtered);
             } else { 
                 clearSearch.style.display = 'none'; 
