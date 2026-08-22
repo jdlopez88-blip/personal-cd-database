@@ -159,16 +159,33 @@
         const modalTracks = document.getElementById('modalTracks');
         const closeModal = document.getElementById('closeModal');
 
-        async function fetchCollection() {
+                async function fetchCollection() {
             try {
                 collectionCount.innerText = "Loading Live Rows...";
-                const res = await fetch(GOOGLE_SHEET_API_URL);
-                allAlbums = await res.json();
-                renderData(allAlbums);
+                
+                // 🔌 NEW PRODUCTION CONTEXT ENGINE: Routes data via JSONP to effortlessly drop browser barriers
+                const script = document.createElement('script');
+                script.src = GOOGLE_SHEET_API_URL + "?callback=handleJSONPResponse";
+                
+                // Safety connection timeout routine
+                window.handleJSONPResponse = function(data) {
+                    allAlbums = data;
+                    renderData(allAlbums);
+                    delete window.handleJSONPResponse;
+                    document.body.removeChild(script);
+                };
+                
+                script.onerror = function() {
+                    collectionCount.innerText = "Connection Error";
+                };
+                
+                document.body.appendChild(script);
             } catch (err) {
                 collectionCount.innerText = "Connection Error";
+                console.error("Payload Sync Exception:", err);
             }
         }
+
 
         function renderData(data) {
             collectionCount.innerText = `Active Collection (${data.length} Albums)`;
